@@ -7,7 +7,7 @@ import warnings
 
 # Suppress all warnings
 warnings.filterwarnings("ignore")
-path = os.getcwd() + r"/HP/flood-data-ecosystem-Himachal-Pradesh"
+path = os.getcwd() #+ r"/HP/flood-data-ecosystem-Himachal-Pradesh"
 master_variables = pd.read_csv(path+'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
 def get_financial_year(timeperiod):

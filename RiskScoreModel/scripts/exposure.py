@@ -8,7 +8,7 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
-master_variables = pd.read_csv(os.getcwd()+'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/MASTER_VARIABLES.csv')
+master_variables = pd.read_csv(os.getcwd()+r'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
 exposure_vars = ['total_hhd','sum_population',"sum_aged_population","schools_count","rail_length", "net_sown_area_in_hac",
                       "road_length"
@@ -57,4 +57,4 @@ exposure = pd.concat(exposure_df_months)
 master_variables = master_variables.merge(exposure[['timeperiod', 'object_id', 'exposure']],
                        on = ['timeperiod', 'object_id'])
 
-master_variables.to_csv(os.getcwd()+'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/factor_scores_l1_exposure.csv', index=False)
+master_variables.to_csv(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l1_exposure.csv', index=False)

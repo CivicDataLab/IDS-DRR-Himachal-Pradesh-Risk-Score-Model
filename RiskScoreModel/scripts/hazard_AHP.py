@@ -38,7 +38,7 @@ print("AHP-derived weights:", weights)
 
 # Suppress all warnings
 warnings.filterwarnings("ignore")
-path = os.getcwd() + r"/HP/flood-data-ecosystem-Himachal-Pradesh"
+path = os.getcwd()
 
 master_variables = pd.read_csv(path+'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 

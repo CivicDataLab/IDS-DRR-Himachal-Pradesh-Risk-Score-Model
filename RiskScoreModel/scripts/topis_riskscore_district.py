@@ -10,12 +10,13 @@ vul_w = 2
 resp_w = 2
 
 ## MASTER DATA WITH FACTOR SCORES
-#print(os.getcwd())
+print(os.getcwd())
 ## INPUT: FACTOR SCORES CSV
-factor_scores_dfs = glob.glob(os.getcwd()+'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/factor_scores_l1*.csv')
-#print(factor_scores_dfs[2])
+factor_scores_dfs = glob.glob(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l1*.csv')
+
 # Select only the columns that exist in both the DataFrame and the list
-factors = ['flood-hazard', 'exposure', 'vulnerability', 'government-response','efficiency']#,'historical_tenders','flood-hazard-float']
+factors = ['exposure', 'flood-hazard', 'vulnerability', 'government-response']
+#additional_columns = ['financial_year','efficiency','flood-hazard-float', 'total_tenders_hist', "SDRF_sanctions_hist", "other_tenders_hist"]
 
 merged_df = pd.read_csv(factor_scores_dfs[0])
 # Merge successive DataFrames in the list
@@ -80,11 +81,11 @@ topsis = pd.concat(df_months)
 topsis = topsis.drop('District',axis=1)
 
 topsis.columns = [col.lower().replace('_', '-').replace(' ', '-') for col in topsis.columns]
-#print(topsis.columns)
-topsis.to_csv(os.getcwd()+'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/risk_score.csv', index=False)
+print(topsis.columns)
+topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score.csv', index=False)
 
 ## DISTRICT LEVEL SCORES
-dist_ids = pd.read_csv(os.getcwd()+r'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/assets/district_objectid.csv')
+dist_ids = pd.read_csv(os.getcwd()+r'/RiskScoreModel/assets/district_objectid.csv')
 
 compositescorelabels = ['1','2','3','4','5']
 
@@ -93,13 +94,10 @@ compscore = pd.cut(dist_vul['vulnerability'],bins = 5,precision = 0,labels = com
 dist_vul['vulnerability'] = compscore
 dist_vul = dist_vul.merge(dist_ids, on='district')
 
-
-
 dist_exp = topsis.groupby(['district','timeperiod'])['exposure'].mean().reset_index()
 compscore = pd.cut(dist_exp['exposure'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_exp['exposure'] = compscore
 dist_exp = dist_exp.merge(dist_ids, on='district')
-
 
 dist_govt = topsis.groupby(['district','timeperiod'])['government-response'].mean().reset_index()
 compscore = pd.cut(dist_govt['government-response'],bins = 5,precision = 0,labels = compositescorelabels )
@@ -135,6 +133,13 @@ indicators = ['total-tender-awarded-value',
     #'roads',
     #'bridge',
     #'embankment-breached',
+    "total-livestock-loss",
+    "schools-damaged",
+    "person-dead",
+    "person-major-injury",
+    "structure-lost",
+    "health-centres-lost",
+    "roadlength",
     'sum-population',
     "nviall-comp",
     "sviall-comp",
@@ -188,7 +193,7 @@ indicators = ['total-tender-awarded-value',
     'max-rain',
     'mean-rain',
     'sum-rain',
-    'efficiency',
+    #'efficiency',
 
     'mean-daily-runoff',
     'sum-runoff',
@@ -230,7 +235,7 @@ indicators = ['total-tender-awarded-value',
 'riverlevel-mean':'mean',
 'mean-cn':'mean',
 'population-affected-total': 'max',
-'crop-area': 'max',
+#'crop-area': 'max',
     'riverlevel-max':'max',
 
 'riverlevel-min':'min'
@@ -247,6 +252,13 @@ aggregation_rules = {
     'immediate-measures-tenders-awarded-value': 'sum',
     #'others-tenders-awarded-value': 'sum',
 
+    "total-livestock-loss" : 'sum',
+    "schools-damaged": 'sum',
+    "person-dead": 'sum',
+    "person-major-injury": 'sum',
+    "structure-lost": 'sum',
+    "health-centres-lost": 'sum',
+    "roadlength": 'sum',
 
     'sum-population': 'sum',
     'inundation-intensity-sum': 'sum',
@@ -281,7 +293,7 @@ aggregation_rules = {
     'sum-runoff':'sum',
     'peak-runoff':'max',
 
-    'efficiency':'mean',
+    #'efficiency':'mean',
     "nviall-comp":'mean',
     "sviall-comp":'mean',
     "pviall-comp":'mean',
@@ -328,7 +340,7 @@ rounding_rules = {
     'road-length':0,
     'elevation-mean':0,
     'slope-mean':0,
-    'crop-area':0,
+    #'crop-area':0,
 
     #'flood-hazard':0,
     #'risk-score': 0,
@@ -369,8 +381,8 @@ dist = pd.concat([dist_vul.set_index(['district', 'timeperiod']),#['vulnerabilit
                   dist_risk.set_index(['district', 'timeperiod'])['risk-score'],
                   dist_indicators.set_index(['district', 'timeperiod'])[indicators]],
                   axis=1).reset_index()
-dist.to_csv(os.getcwd()+r'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/dist_test.csv')
-topsis.to_csv(os.getcwd()+r'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/topsis_test.csv')
+dist.to_csv(os.getcwd()+r'/RiskScoreModel/data/dist_test.csv')
+topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/topsis_test.csv')
 
 #print(topsis.shape)
 
@@ -382,18 +394,18 @@ final = pd.concat([topsis, dist], ignore_index=True)
 final = apply_rounding_rules(final, rounding_rules)
 final['inundation-pct'] = final['inundation-pct']*100
 
-final = final.rename(columns={"nviall_comp":"natural_vulnerability_index",
-    "sviall_comp":"social_vulnerability_index",
-    "pviall_comp":"physical_vulnerability_index",
-    "hviall_comp":"human_vulnerability_index",
-    "fviall_comp":"financial_vulnerability_index"})
+final = final.rename(columns={"nviall-comp":"natural-vulnerability-index",
+    "sviall-comp":"social-vulnerability-index",
+    "pviall-comp":"physical-vulnerability-index",
+    "hviall-comp":"human-vulnerability-index",
+    "fviall-comp":"financial-vulnerability-index"})
 
 
 #final = pd.concat([topsis.set_index(['object-id', 'timeperiod']),
 #                   dist.set_index(['object-id', 'timeperiod'])], axis=1).reset_index()
 
 final.rename(columns={'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value', 'mean-sexratio':'sexratio'}, inplace=True)
-final.to_csv(os.getcwd()+r'/HP/flood-data-ecosystem-Himachal-Pradesh/RiskScoreModel/data/risk_score_final_district.csv', index=False)
+final.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score_final_district.csv', index=False)
 
 #dist.rename(columns={'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value'}, inplace=True)
 #dist.to_csv(os.getcwd()+r'/IDS-DRR-Assam/RiskScoreModel/data/risk_score_final_dist.csv', index=False)
