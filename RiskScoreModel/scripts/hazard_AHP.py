@@ -90,7 +90,7 @@ hazard = pd.concat(hazard_df_months)
 
 master_variables = master_variables.merge(hazard[['timeperiod', 'object_id', 'flood-hazard']],
                        on = ['timeperiod', 'object_id'],how='left')
-print(master_variables.columns)
-master_variables.to_csv(path+r'/RiskScoreModel/data/factor_scores_l1_flood-hazard_AHP.csv', index=False)
+#print(master_variables.columns)
+master_variables.to_csv(path+r'/RiskScoreModel/data/factor_scores_l1_flood-hazard.csv', index=False)
 
 # Normalize data using MinMaxScaler

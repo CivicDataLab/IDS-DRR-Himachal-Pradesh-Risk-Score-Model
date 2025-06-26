@@ -16,7 +16,7 @@ factor_scores_dfs = glob.glob(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l
 
 # Select only the columns that exist in both the DataFrame and the list
 factors = ['exposure', 'flood-hazard', 'vulnerability', 'government-response']
-#additional_columns = ['financial_year','efficiency','flood-hazard-float', 'total_tenders_hist', "SDRF_sanctions_hist", "other_tenders_hist"]
+additional_columns = ['efficiency','flood-hazard-float','landd_score']
 
 merged_df = pd.read_csv(factor_scores_dfs[0])
 # Merge successive DataFrames in the list
@@ -27,31 +27,37 @@ for df in factor_scores_dfs[1:]:
     df = df[selected_columns + ['object_id', 'timeperiod']]
     merged_df = pd.merge(merged_df, df, on=['object_id', 'timeperiod'], how='inner')
 ##df = pd.read_csv(os.getcwd()+'/RiskScoreModel/data/factor_scores.csv')
-'''
-#updating govt-response variables to be cumulative
-government_response_vars = ["total_tender_awarded_value",
-                            #"SDRF_sanctions_awarded_value",
-                       #"SOPD_tenders_awarded_value",
-                       #"SDRF_tenders_awarded_value",
-                       "RIDF_tenders_awarded_value",
-                       #"LTIF_tenders_awarded_value",
-                       #"CIDF_tenders_awarded_value",
-                       "Preparedness Measures_tenders_awarded_value",
-                       "Immediate Measures_tenders_awarded_value",
-                       "Others_tenders_awarded_value"
-                      ]
 
-govt_response_df = pd.read_csv(r'D:\CivicDataLab_IDS-DRR\IDS-DRR_Github\flood-data-ecosystem-Odisha\RiskScoreModel\data\factor_scores_l1_government-response.csv')  # Adjust path
-govt_response_df = govt_response_df[['object_id', 'timeperiod']+government_response_vars]
+def get_financial_year(timeperiod):
+    if int(timeperiod.split('_')[1]) >= 4:
+        return str(int(timeperiod.split('_')[0]))+'-'+str(int(timeperiod.split('_')[0])+1)
+    else:
+        return str(int(timeperiod.split('_')[0]) - 1)+'-'+str(int(timeperiod.split('_')[0]))
+    
+# Apply the function to create the 'FinancialYear' column
+merged_df['financial_year'] = merged_df['timeperiod'].apply(lambda x: get_financial_year(x))
 
-# Merge govt_response_df into the merged dataframe to update the 'government-response' values
-merged_df = pd.merge(merged_df, govt_response_df, on=['object_id', 'timeperiod'], how='left', suffixes=('', '_updated'))
 
-# Update each of the government response variables
-for col in government_response_vars:
-    merged_df[col] = merged_df[f'{col}_updated']  # Directly replace values with the updated column
-    merged_df = merged_df.drop(columns=[f'{col}_updated'])  # Clean up the temporary '_updated' columns
-'''
+# Ensure sorting for proper cumulative sum
+merged_df.sort_values(by=['object_id', 'financial_year', 'timeperiod'], inplace=True)
+
+cumulative_vars = [
+    'total_tender_awarded_value', 
+    'Repair and Restoration_tenders_awarded_value',
+    'LWSS_tenders_awarded_value', 
+    'NDRF_tenders_awarded_value', 
+    'SDMF_tenders_awarded_value', 
+    'WSS_tenders_awarded_value', 
+    'Preparedness Measures_tenders_awarded_value', 
+    'Immediate Measures_tenders_awarded_value', 
+    'Others_tenders_awarded_value',
+    'relief_and_mitigation_sanction_value'
+]
+
+for var in cumulative_vars:
+    cum_var_name = var + "_fy_cumsum"
+    merged_df[cum_var_name] = merged_df.groupby(['object_id', 'financial_year'])[var].cumsum()
+
 df_months = []
 
 for month in merged_df.timeperiod.unique():
@@ -116,16 +122,16 @@ dist_risk['risk-score'] = compscore
 dist_risk = dist_risk.merge(dist_ids, on='district')
 
 
-indicators = ['total-tender-awarded-value',
-    #'sopd-tenders-awarded-value',
-    #'sdrf-sanctions-awarded-value',
-    #'sdrf-tenders-awarded-value',
-    #'ridf-tenders-awarded-value',
-    #'ltif-tenders-awarded-value',
-    #'cidf-tenders-awarded-value',
-    #'preparedness-measures-tenders-awarded-value',
-    #'immediate-measures-tenders-awarded-value',
-    #'others-tenders-awarded-value',
+indicators = ['total-tender-awarded-value', 
+    'repair-and-restoration-tenders-awarded-value',
+    'lwss-tenders-awarded-value', 
+    'ndrf-tenders-awarded-value', 
+    'sdmf-tenders-awarded-value', 
+    'wss-tenders-awarded-value', 
+    'preparedness-measures-tenders-awarded-value', 
+    'immediate-measures-tenders-awarded-value', 
+    'others-tenders-awarded-value',
+    'relief-and-mitigation-sanction-value',
     #'total-animal-washed-away',
     #'total-animal-affected',
     #'total-house-fully-damaged',
@@ -205,52 +211,19 @@ indicators = ['total-tender-awarded-value',
     #'government-response',
     ]
 
-
-# Unused aggregation rules
-"""
-'sopd-tenders-awarded-value': 'sum',
-'sdrf-sanctions-awarded-value': 'sum',
-'sdrf-tenders-awarded-value': 'sum',
-'ltif-tenders-awarded-value': 'sum',
-'cidf-tenders-awarded-value': 'sum',
-
-'total-animal-washed-away': 'sum',
-'total-animal-affected': 'sum',
-'total-house-fully-damaged': 'sum',
-'embankments-affected': 'sum',
-'roads': 'sum',
-'bridge': 'sum',
-'embankment-breached': 'sum',
-'human-live-lost': 'sum',
-'water':'mean',
-'trees':'mean',
-'rangeland':'mean',
-'crops':'mean',
-'flooded-vegetation':'mean',
-'built-area':'mean',
-'bare-ground':'mean',
-'clouds':'mean',
-'mean-ndvi':'mean',
-'mean-ndbi':'mean',
-'riverlevel-mean':'mean',
-'mean-cn':'mean',
-'population-affected-total': 'max',
-#'crop-area': 'max',
-    'riverlevel-max':'max',
-
-'riverlevel-min':'min'
-
-
-"""
-
 # Define aggregation rules based on the columns
 aggregation_rules = {
     # Sum columns
-    'total-tender-awarded-value': 'sum',
-    #'ridf-tenders-awarded-value': 'sum',
-    #'preparedness-measures-tenders-awarded-value': 'sum',
-    'immediate-measures-tenders-awarded-value': 'sum',
-    #'others-tenders-awarded-value': 'sum',
+    'total-tender-awarded-value': 'sum', 
+    'repair-and-restoration-tenders-awarded-value': 'sum',
+    'lwss-tenders-awarded-value': 'sum', 
+    'ndrf-tenders-awarded-value': 'sum', 
+    'sdmf-tenders-awarded-value': 'sum', 
+    'wss-tenders-awarded-value': 'sum', 
+    'preparedness-measures-tenders-awarded-value': 'sum', 
+    'immediate-measures-tenders-awarded-value': 'sum', 
+    'others-tenders-awarded-value': 'sum',
+    'relief-and-mitigation-sanction-value': 'sum',
 
     "total-livestock-loss" : 'sum',
     "schools-damaged": 'sum',
@@ -317,6 +290,19 @@ aggregation_rules = {
 }
 
 rounding_rules = {
+
+    'total-tender-awarded-value':0, 
+    'repair-and-restoration-tenders-awarded-value':0,
+    'lwss-tenders-awarded-value':0, 
+    'ndrf-tenders-awarded-value':0, 
+    'sdmf-tenders-awarded-value':0, 
+    'wss-tenders-awarded-value':0, 
+    'preparedness-measures-tenders-awarded-value':0, 
+    'immediate-measures-tenders-awarded-value':0, 
+    'others-tenders-awarded-value':0,
+    'relief-and-mitigation-sanction-value':0,
+    'net-sown-area-in-hac':0,
+
     'avg-tele': 1,  # Round column 'A' to 1 decimal place
     'avg-electricity': 1,
 
@@ -332,6 +318,12 @@ rounding_rules = {
     'sum-runoff':2,
     'peak-runoff':2,
 
+    "nviall-comp":2,
+    "sviall-comp":2,
+    "pviall-comp":2,
+    "hviall-comp":2,
+    "fviall-comp":2,
+    "cviall-comp":2,
     
     'sum-aged-population': 0,   # Round column 'C' to no decimal places
     'sum-young-population': 0,
@@ -340,6 +332,7 @@ rounding_rules = {
     'road-length':0,
     'elevation-mean':0,
     'slope-mean':0,
+    'total-hhd': 0,
     #'crop-area':0,
 
     #'flood-hazard':0,
@@ -363,16 +356,6 @@ def apply_rounding_rules(df, rounding_rules):
             print(f"Column {column} does not exist in DataFrame.")
     return df
 
-'''
-
-dist = pd.concat([dist_indicators, 
-                  dist_vul['vulnerability'],
-                  dist_exp['exposure'], 
-                  dist_govt['government-response'], 
-                  dist_haz['flood-hazard'], 
-                  dist_risk['risk-score']], 
-                  axis=1)
-'''
 
 dist = pd.concat([dist_vul.set_index(['district', 'timeperiod']),#['vulnerability'],
                   dist_exp.set_index(['district', 'timeperiod'])['exposure'],
@@ -381,32 +364,33 @@ dist = pd.concat([dist_vul.set_index(['district', 'timeperiod']),#['vulnerabilit
                   dist_risk.set_index(['district', 'timeperiod'])['risk-score'],
                   dist_indicators.set_index(['district', 'timeperiod'])[indicators]],
                   axis=1).reset_index()
-dist.to_csv(os.getcwd()+r'/RiskScoreModel/data/dist_test.csv')
-topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/topsis_test.csv')
 
+#for debugging
+#dist.to_csv(os.getcwd()+r'/RiskScoreModel/data/dist_test.csv')
+#topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/topsis_test.csv')
 #print(topsis.shape)
-
-
 
 final = pd.concat([topsis, dist], ignore_index=True)
 
 # Apply rounding rules
 final = apply_rounding_rules(final, rounding_rules)
-final['inundation-pct'] = final['inundation-pct']*100
+#final['inundation-pct'] = final['inundation-pct']*100
 
 final = final.rename(columns={"nviall-comp":"natural-vulnerability-index",
     "sviall-comp":"social-vulnerability-index",
     "pviall-comp":"physical-vulnerability-index",
     "hviall-comp":"human-vulnerability-index",
-    "fviall-comp":"financial-vulnerability-index"})
+    "fviall-comp":"financial-vulnerability-index",
+    "cviall-comp":"composite-vulnerability-index",
+    'block-piped-hhds-pct': 'tehsil-piped-hhds-pct',
+    'block-nosanitation-hhds-pct': 'tehsil-nosanitation-hhds-pct',
+    'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value', 
+    'mean-sexratio':'sexratio'})
 
+# Add financial year details at the district level as well
+final['financial-year'] = final['timeperiod'].apply(lambda x: get_financial_year(x))
 
-#final = pd.concat([topsis.set_index(['object-id', 'timeperiod']),
-#                   dist.set_index(['object-id', 'timeperiod'])], axis=1).reset_index()
+final = final.drop(columns=['objectid', 'object-id-new','timeperiod-datetime','year','unnamed:-0','Unnamed: 0'])
 
-final.rename(columns={'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value', 'mean-sexratio':'sexratio'}, inplace=True)
+final["total-infrastructure-damage"] =  final["structure-lost"] + final["health-centres-lost"] + final["schools-damaged"]
 final.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score_final_district.csv', index=False)
-
-#dist.rename(columns={'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value'}, inplace=True)
-#dist.to_csv(os.getcwd()+r'/IDS-DRR-Assam/RiskScoreModel/data/risk_score_final_dist.csv', index=False)
-
