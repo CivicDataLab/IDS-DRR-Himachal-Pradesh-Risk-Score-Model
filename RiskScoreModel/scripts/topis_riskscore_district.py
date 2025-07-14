@@ -225,6 +225,17 @@ aggregation_rules = {
     'others-tenders-awarded-value': 'sum',
     'relief-and-mitigation-sanction-value': 'sum',
 
+    'total-tender-awarded-value-fy-cumsum':'sum', 
+    'repair-and-restoration-tenders-awarded-value-fy-cumsum':'sum',
+    'lwss-tenders-awarded-value-fy-cumsum':'sum', 
+    'ndrf-tenders-awarded-value-fy-cumsum':'sum', 
+    'sdmf-tenders-awarded-value-fy-cumsum':'sum', 
+    'wss-tenders-awarded-value-fy-cumsum':'sum', 
+    'preparedness-measures-tenders-awarded-value-fy-cumsum':'sum', 
+    'immediate-measures-tenders-awarded-value-fy-cumsum':'sum', 
+    'others-tenders-awarded-value-fy-cumsum':'sum',
+    'relief-and-mitigation-sanction-value-fy-cumsum':'sum',
+
     "total-livestock-loss" : 'sum',
     "schools-damaged": 'sum',
     "person-dead": 'sum',

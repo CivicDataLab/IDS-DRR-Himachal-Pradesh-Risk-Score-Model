@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore")
 
 master_variables = pd.read_csv(os.getcwd()+r'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
-exposure_vars = ['total_hhd','sum_population',"sum_aged_population","schools_count","rail_length", "net_sown_area_in_hac",
+exposure_vars = ['total_hhd','sum_population',"sum_aged_population","sum_young_population","schools_count","rail_length", "net_sown_area_in_hac",
                       "road_length"
                       #"health_centres_count",
                      ]
