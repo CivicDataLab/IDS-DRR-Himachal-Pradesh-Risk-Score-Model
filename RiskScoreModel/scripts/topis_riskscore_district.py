@@ -90,36 +90,135 @@ topsis.columns = [col.lower().replace('_', '-').replace(' ', '-') for col in top
 print(topsis.columns)
 topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score.csv', index=False)
 
-## DISTRICT LEVEL SCORES
+# ## DISTRICT LEVEL SCORES
 dist_ids = pd.read_csv(os.getcwd()+r'/RiskScoreModel/assets/district_objectid.csv')
 
 compositescorelabels = ['1','2','3','4','5']
 
-dist_vul = topsis.groupby(['district','timeperiod'])['vulnerability'].mean().reset_index()
+dist_vul = topsis.groupby(['district','timeperiod'])['vulnerability'].sum().reset_index()
 compscore = pd.cut(dist_vul['vulnerability'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_vul['vulnerability'] = compscore
 dist_vul = dist_vul.merge(dist_ids, on='district')
 
-dist_exp = topsis.groupby(['district','timeperiod'])['exposure'].mean().reset_index()
+dist_exp = topsis.groupby(['district','timeperiod'])['exposure'].sum().reset_index()
 compscore = pd.cut(dist_exp['exposure'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_exp['exposure'] = compscore
 dist_exp = dist_exp.merge(dist_ids, on='district')
 
-dist_govt = topsis.groupby(['district','timeperiod'])['government-response'].mean().reset_index()
+dist_govt = topsis.groupby(['district','timeperiod'])['government-response'].sum().reset_index()
 compscore = pd.cut(dist_govt['government-response'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_govt['government-response'] = compscore
 dist_govt = dist_govt.merge(dist_ids, on='district')
 
-dist_haz = topsis.groupby(['district','timeperiod'])['flood-hazard'].mean().reset_index()
+dist_haz = topsis.groupby(['district','timeperiod'])['flood-hazard'].sum().reset_index()
 compscore = pd.cut(dist_haz['flood-hazard'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_haz['flood-hazard'] = compscore
 dist_haz = dist_haz.merge(dist_ids, on='district')
 
 topsis['risk-score'] = topsis['risk-score'].astype(int)
-dist_risk = topsis.groupby(['district','timeperiod'])['risk-score'].mean().reset_index()
+dist_risk = topsis.groupby(['district','timeperiod'])['risk-score'].sum().reset_index()
 compscore = pd.cut(dist_risk['risk-score'],bins = 5,precision = 0,labels = compositescorelabels )
 dist_risk['risk-score'] = compscore
 dist_risk = dist_risk.merge(dist_ids, on='district')
+
+# === DISTRICT LEVEL SCORES (improved, minimal changes) ===
+
+# dist_ids = pd.read_csv(os.getcwd()+r'/RiskScoreModel/assets/district_objectid.csv')
+
+# def safe_qcut(s: pd.Series, q: int = 5, labels=None):
+#     """
+#     Quantile-bin a series but gracefully handle too-few-unique values and duplicates.
+#     Ensures number of labels matches number of bins.
+#     """
+#     s = pd.to_numeric(s, errors='coerce')
+#     s_nonan = s.dropna()
+#
+#     # If everything is NaN or constant -> single bin
+#     nunique = s_nonan.nunique()
+#     if nunique == 0:
+#         return pd.Series(pd.NA, index=s.index, dtype="Int64")
+#     if nunique == 1:
+#         # All same value -> put everything in bin 1
+#         return pd.Series(1, index=s.index, dtype="Int64")
+#
+#     # Don’t ask for more quantiles than distinct values
+#     q_eff = min(q, nunique)
+#
+#     # First try: direct qcut with adjusted q and labels
+#     lab = labels if (labels is not None and len(labels) == q_eff) else list(range(1, q_eff + 1))
+#     try:
+#         return pd.qcut(s, q=q_eff, labels=lab, duplicates='drop')
+#     except ValueError:
+#         # If duplicates still collapse bins, get actual bins, then cut with matching labels
+#         _, bins = pd.qcut(s, q=q_eff, labels=None, retbins=True, duplicates='drop')
+#         nb = len(bins) - 1
+#         lab2 = labels if (labels is not None and len(labels) == nb) else list(range(1, nb + 1))
+#         return pd.cut(s, bins=bins, labels=lab2, include_lowest=True) # type: ignore
+#
+# # Use integer labels for easier downstream use
+# compositescorelabels = [1, 2, 3, 4, 5]
+#
+# # Work only with tehsil rows for aggregation (prevents mixing pre-aggregated rows)
+# _base = topsis.loc[topsis['tehsil'].notna()].copy()
+#
+# # Ensure numerics
+# for c in ['vulnerability', 'exposure', 'government-response', 'flood-hazard', 'risk-score', 'sum-population']:
+#     _base[c] = pd.to_numeric(_base[c], errors='coerce')
+#
+# # If higher government-response means better capacity (i.e., lowers risk), invert it here for risk aggregation
+# #_base['gov_resp_cost'] = 1 - _base['government-response']
+#
+# def _wavg(g, col, w='sum-population'):
+#     v = pd.to_numeric(g[col], errors='coerce')
+#     wv = pd.to_numeric(g[w], errors='coerce')
+#     m = v.notna() & wv.notna() & (wv > 0)
+#     return np.average(v[m], weights=wv[m]) if m.any() else np.nan
+#
+# # Vulnerability
+# dist_vul = (
+#     _base.groupby(['district','timeperiod'])
+#          .apply(lambda g: pd.Series({'vulnerability': _wavg(g, 'vulnerability')}))
+#          .reset_index()
+# )
+# dist_vul['vulnerability'] = safe_qcut(dist_vul['vulnerability'], q=5, labels=compositescorelabels)
+# dist_vul = dist_vul.merge(dist_ids, on='district', how='left')
+#
+# # Exposure
+# dist_exp = (
+#     _base.groupby(['district','timeperiod'])
+#          .apply(lambda g: pd.Series({'exposure': _wavg(g, 'exposure')}))
+#          .reset_index()
+# )
+# dist_exp['exposure'] = safe_qcut(dist_exp['exposure'], q=5, labels=compositescorelabels)
+# dist_exp = dist_exp.merge(dist_ids, on='district', how='left')
+#
+# # Government response (cost: higher = worse for risk)
+# dist_govt = (
+#     _base.groupby(['district','timeperiod'])
+#          .apply(lambda g: pd.Series({'government-response': _wavg(g, 'government-response')}))
+#          .reset_index()
+# )
+# dist_govt['government-response'] = safe_qcut(dist_govt['government-response'], q=5, labels=compositescorelabels)
+# dist_govt = dist_govt.merge(dist_ids, on='district', how='left')
+#
+# # Flood hazard
+# dist_haz = (
+#     _base.groupby(['district','timeperiod'])
+#          .apply(lambda g: pd.Series({'flood-hazard': _wavg(g, 'flood-hazard')}))
+#          .reset_index()
+# )
+# dist_haz['flood-hazard'] = safe_qcut(dist_haz['flood-hazard'], q=5, labels=compositescorelabels)
+# dist_haz = dist_haz.merge(dist_ids, on='district', how='left')
+#
+# # Risk-score (keep continuous when averaging; bin only after)
+# dist_risk = (
+#     _base.groupby(['district','timeperiod'])
+#          .apply(lambda g: pd.Series({'risk-score': _wavg(g, 'risk-score')}))
+#          .reset_index()
+# )
+# dist_risk['risk-score'] = safe_qcut(dist_risk['risk-score'], q=5, labels=compositescorelabels)
+# dist_risk = dist_risk.merge(dist_ids, on='district', how='left')
+
 
 
 indicators = ['total-tender-awarded-value', 
@@ -295,8 +394,6 @@ aggregation_rules = {
     # Max for hazard levels
     
     'max-rain':'max',
-   
-
 
 }
 
@@ -351,7 +448,6 @@ rounding_rules = {
     #'exposure': 0,
     #'vulnerability': 0,
     #'government-response': 0,
-
 }
 
 dist_indicators = topsis.groupby(['district', 'timeperiod']).agg(aggregation_rules).reset_index()
@@ -401,7 +497,7 @@ final = final.rename(columns={"nviall-comp":"natural-vulnerability-index",
 # Add financial year details at the district level as well
 final['financial-year'] = final['timeperiod'].apply(lambda x: get_financial_year(x))
 
-final = final.drop(columns=['objectid', 'object-id-new','timeperiod-datetime','year','unnamed:-0','Unnamed: 0'])
+final = final.drop(columns=['objectid', 'object-id-new','timeperiod-datetime','year','unnamed:-0'])#,'Unnamed: 0'])
 
 final["total-infrastructure-damage"] =  final["structure-lost"] + final["health-centres-lost"] + final["schools-damaged"]
 final.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score_final_district.csv', index=False)

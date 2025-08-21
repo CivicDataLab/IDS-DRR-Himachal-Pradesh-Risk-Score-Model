@@ -10,8 +10,8 @@ warnings.filterwarnings("ignore")
 
 master_variables = pd.read_csv(os.getcwd()+r'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
-exposure_vars = ['total_hhd','sum_population',"sum_aged_population","sum_young_population","schools_count","rail_length", "net_sown_area_in_hac",
-                      "road_length"
+exposure_vars = ['total_hhd','sum_population'#,"sum_aged_population","sum_young_population","schools_count","rail_length", "net_sown_area_in_hac",
+                      #"road_length"
                       #"health_centres_count",
                      ]
 
@@ -31,24 +31,31 @@ for month in tqdm(exposure_df.timeperiod.unique()):
     exposure_df_month['sum'] = exposure_df_month[exposure_vars].sum(axis=1)
     
     # Calculate mean and standard deviation
-    mean = exposure_df_month['sum'].mean()
-    std = exposure_df_month['sum'].std()
+    # mean = exposure_df_month['sum'].mean()
+    # std = exposure_df_month['sum'].std()
     
-    # Define the conditions for each category
-    conditions = [
-        (exposure_df_month['sum'] <= mean),
-        (exposure_df_month['sum'] > mean) & (exposure_df_month['sum'] <= mean + std),
-        (exposure_df_month['sum'] > mean + std) & (exposure_df_month['sum'] <= mean + 2 * std),
-        (exposure_df_month['sum'] > mean + 2 * std) & (exposure_df_month['sum'] <= mean + 3 * std),
-        (exposure_df_month['sum'] > mean + 3 * std)
-    ]
+    # # Define the conditions for each category
+    # conditions = [
+    #     (exposure_df_month['sum'] <= mean),
+    #     (exposure_df_month['sum'] > mean) & (exposure_df_month['sum'] <= mean + std),
+    #     (exposure_df_month['sum'] > mean + std) & (exposure_df_month['sum'] <= mean + 2 * std),
+    #     (exposure_df_month['sum'] > mean + 2 * std) & (exposure_df_month['sum'] <= mean + 3 * std),
+    #     (exposure_df_month['sum'] > mean + 3 * std)
+    # ]
     
     # Define the corresponding categories
     #categories = ['very low', 'low', 'medium', 'high', 'very high']
     categories = [1, 2, 3, 4, 5]
     
     # Create the new column based on the conditions
-    exposure_df_month['exposure'] = np.select(conditions, categories, default='outlier')
+    #exposure_df_month['exposure'] = np.select(conditions, categories)#, default='outlier')
+    # 1) raw exposure for summations/rank
+    exposure_df_month['exposure_raw'] = exposure_df_month['sum_population']  # or total_hhd
+
+    # 2) optional class for maps/legends (DON'T average this for district rank)
+    exposure_df_month['exposure'] = pd.qcut(
+        exposure_df_month['exposure_raw'], 5, labels=[1,2,3,4,5], duplicates='drop'
+    ).astype(int)
 
     exposure_df_months.append(exposure_df_month)
 
