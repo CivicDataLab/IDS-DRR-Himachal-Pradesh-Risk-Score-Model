@@ -1,0 +1,21 @@
+internalwatersupply
+district
+timeperiod
+electricpoles
+Unnamed: 0
+electricwires
+repair-and-restoration-tenders-awarded-value-fy-cumsum
+economic-loss
+tehsil
+count
+rail-count
+repair-and-restoration-tenders-awarded-value
+shape-area
+road-count
+financial-year
+object-id
+streetlights
+health-amount
+dtcode11
+state
+shape-leng
