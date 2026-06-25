@@ -8,7 +8,7 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 path = os.getcwd() #+ r"/HP/flood-data-ecosystem-Himachal-Pradesh"
-master_variables = pd.read_csv(path+'/RiskScoreModel/data/MASTER_VARIABLES.csv')
+master_variables = pd.read_csv(path+'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
 def get_financial_year(timeperiod):
     if int(timeperiod.split('_')[1]) >= 4:
@@ -75,4 +75,4 @@ govtresponse = pd.concat(govtresponse_df_months)
 master_variables = master_variables.merge(govtresponse[['timeperiod', 'object_id', 'government-response']],
                        on = ['timeperiod', 'object_id'])
 
-master_variables.to_csv(path+'/RiskScoreModel/data/factor_scores_l1_government-response.csv', index=False)
+master_variables.to_csv(path+'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/factor_scores_l1_government-response.csv', index=False)

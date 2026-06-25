@@ -8,7 +8,7 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
-master_variables = pd.read_csv(os.getcwd()+r'/RiskScoreModel/data/MASTER_VARIABLES.csv')
+master_variables = pd.read_csv(os.getcwd()+'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
 exposure_vars = ['total_hhd','sum_population'#,"sum_aged_population","sum_young_population","schools_count","rail_length", "net_sown_area_in_hac",
                       #"road_length"
@@ -51,6 +51,8 @@ for month in tqdm(exposure_df.timeperiod.unique()):
     #exposure_df_month['exposure'] = np.select(conditions, categories)#, default='outlier')
     # 1) raw exposure for summations/rank
     exposure_df_month['exposure_raw'] = exposure_df_month['sum_population']  # or total_hhd
+    n_unique = exposure_df_month['exposure_raw'].nunique()
+    print(f"Month: {month}, Rows: {len(exposure_df_month)}, Unique exposure values: {n_unique}")
 
     # 2) optional class for maps/legends (DON'T average this for district rank)
     exposure_df_month['exposure'] = pd.qcut(
@@ -64,4 +66,4 @@ exposure = pd.concat(exposure_df_months)
 master_variables = master_variables.merge(exposure[['timeperiod', 'object_id', 'exposure']],
                        on = ['timeperiod', 'object_id'])
 
-master_variables.to_csv(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l1_exposure.csv', index=False)
+master_variables.to_csv(os.getcwd()+r'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/factor_scores_l1_exposure.csv', index=False)
