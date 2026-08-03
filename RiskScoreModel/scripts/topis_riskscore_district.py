@@ -12,7 +12,9 @@ resp_w = 2
 ## MASTER DATA WITH FACTOR SCORES
 print(os.getcwd())
 ## INPUT: FACTOR SCORES CSV
-factor_scores_dfs = glob.glob(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l1*.csv')
+# sorted: glob order is filesystem-dependent, and the first file is the base
+# dataframe whose non-factor columns pass through to the final output
+factor_scores_dfs = sorted(glob.glob(os.getcwd()+r'/RiskScoreModel/data/factor_scores_l1*.csv'))
 
 # Select only the columns that exist in both the DataFrame and the list
 factors = ['exposure', 'flood-hazard', 'vulnerability', 'government-response']
@@ -42,15 +44,15 @@ merged_df['financial_year'] = merged_df['timeperiod'].apply(lambda x: get_financ
 merged_df.sort_values(by=['object_id', 'financial_year', 'timeperiod'], inplace=True)
 
 cumulative_vars = [
-    'total_tender_awarded_value', 
-    'Repair and Restoration_tenders_awarded_value',
-    'LWSS_tenders_awarded_value', 
-    'NDRF_tenders_awarded_value', 
-    'SDMF_tenders_awarded_value', 
-    'WSS_tenders_awarded_value', 
-    'Preparedness Measures_tenders_awarded_value', 
-    'Immediate Measures_tenders_awarded_value', 
-    'Others_tenders_awarded_value',
+    'total_tender_awarded_value',
+    'restoration_measures_tenders_awarded_value',
+    'lwss_tenders_awarded_value',
+    'ndrf_tenders_awarded_value',
+    'sdmf_tenders_awarded_value',
+    'wss_tenders_awarded_value',
+    'preparedness_measures_tenders_awarded_value',
+    'immediate_measures_tenders_awarded_value',
+    'others_tenders_awarded_value',
     'relief_and_mitigation_sanction_value'
 ]
 
@@ -222,7 +224,7 @@ dist_risk = dist_risk.merge(dist_ids, on='district')
 
 
 indicators = ['total-tender-awarded-value', 
-    'repair-and-restoration-tenders-awarded-value',
+    'restoration-measures-tenders-awarded-value',
     'lwss-tenders-awarded-value', 
     'ndrf-tenders-awarded-value', 
     'sdmf-tenders-awarded-value', 
@@ -314,7 +316,7 @@ indicators = ['total-tender-awarded-value',
 aggregation_rules = {
     # Sum columns
     'total-tender-awarded-value': 'sum', 
-    'repair-and-restoration-tenders-awarded-value': 'sum',
+    'restoration-measures-tenders-awarded-value': 'sum',
     'lwss-tenders-awarded-value': 'sum', 
     'ndrf-tenders-awarded-value': 'sum', 
     'sdmf-tenders-awarded-value': 'sum', 
@@ -325,7 +327,7 @@ aggregation_rules = {
     'relief-and-mitigation-sanction-value': 'sum',
 
     'total-tender-awarded-value-fy-cumsum':'sum', 
-    'repair-and-restoration-tenders-awarded-value-fy-cumsum':'sum',
+    'restoration-measures-tenders-awarded-value-fy-cumsum':'sum',
     'lwss-tenders-awarded-value-fy-cumsum':'sum', 
     'ndrf-tenders-awarded-value-fy-cumsum':'sum', 
     'sdmf-tenders-awarded-value-fy-cumsum':'sum', 
@@ -400,7 +402,7 @@ aggregation_rules = {
 rounding_rules = {
 
     'total-tender-awarded-value':0, 
-    'repair-and-restoration-tenders-awarded-value':0,
+    'restoration-measures-tenders-awarded-value':0,
     'lwss-tenders-awarded-value':0, 
     'ndrf-tenders-awarded-value':0, 
     'sdmf-tenders-awarded-value':0, 
@@ -491,7 +493,6 @@ final = final.rename(columns={"nviall-comp":"natural-vulnerability-index",
     "cviall-comp":"composite-vulnerability-index",
     'block-piped-hhds-pct': 'tehsil-piped-hhds-pct',
     'block-nosanitation-hhds-pct': 'tehsil-nosanitation-hhds-pct',
-    'preparedness-measures-tenders-awarded-value': 'restoration-measures-tenders-awarded-value', 
     'mean-sexratio':'sexratio'})
 
 # Add financial year details at the district level as well

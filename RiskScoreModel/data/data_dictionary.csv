@@ -76,3 +76,12 @@ immediate-measures-tenders-awarded-value-fy-cumsum,,,,Government Response,Govern
 others-tenders-awarded-value-fy-cumsum,,,,Government Response,Government Response,INR,,n,monthly,n,,sum,,tehsil,,,
 relief-and-mitigation-sanction-value-fy-cumsum,,,,Government Response,Government Response,INR,,n,monthly,n,,sum,,tehsil,,,
 preparedness-measures-tenders-awarded-value-fy-cumsum,,,,Government Response,Government Response,INR,,n,monthly,n,,sum,,tehsil,,,
+economic-loss,Total Economic Loss,Total monetary value of economic loss reported from disaster events,67,Vulnerability,Vulnerability,INR,HPSDMA,n,monthly,n,,sum,,tehsil,,,
+electricpoles,Electric Poles Damaged,Number of electric poles damaged in disaster events,51,Vulnerability,Vulnerability,Count,HPSDMA,n,monthly,n,,sum,,tehsil,,,
+electricwires,Electric Wires Damaged,Extent of electric wiring/lines damaged in disaster events,58,Vulnerability,Vulnerability,,HPSDMA,n,monthly,n,,sum,,tehsil,,,Unit not confirmed - check with data team
+health-amount,Health Infrastructure Damage Amount,Monetary value/count associated with health centre damage in disaster events,76,Vulnerability,Vulnerability,,HPSDMA,n,monthly,n,,sum,,tehsil,,,Definition/unit not confirmed - check with data team
+internalwatersupply,Internal Water Supply Damaged,Extent of internal water supply infrastructure damaged in disaster events,73,Vulnerability,Vulnerability,,HPSDMA,n,monthly,n,,sum,,tehsil,,,Unit not confirmed - check with data team
+streetlights,Streetlights Damaged,Number of streetlights damaged in disaster events,49,Vulnerability,Vulnerability,Count,HPSDMA,n,monthly,n,,sum,,tehsil,,,
+rail-count,Number of Rail Lines,Number of rail lines in the region,34,Vulnerability,Exposure,Number,BHARATMAPS,n,annually,n,,sum,,tehsil,,,
+road-count,Number of Roads,Number of roads in the region,29,Vulnerability,Exposure,Number,BHARATMAPS,n,annually,n,,sum,,tehsil,,,
+ridf-tenders-awarded-value,Flood Tenders Under RIDF: Total value ,This variable gives information of total value of tenders that were granted under Rural Infrastructure Development Fund,119,Government Response,Government Response,INR,https://hptenders.gov.in/,n,monthly,n,,sum,,tehsil,,,
