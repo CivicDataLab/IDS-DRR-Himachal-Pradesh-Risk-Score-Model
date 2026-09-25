@@ -8,7 +8,7 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 path = os.getcwd() #+ r"/HP/flood-data-ecosystem-Himachal-Pradesh"
-master_variables = pd.read_csv(path+'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/MASTER_VARIABLES.csv')
+master_variables = pd.read_csv(path+'/RiskScoreModel/data/MASTER_VARIABLES.csv')
 
 def get_financial_year(timeperiod):
     if int(timeperiod.split('_')[1]) >= 4:
@@ -31,11 +31,11 @@ government_response_vars = ["total_tender_awarded_value",
                       ]
 
 # Find cumsum in each FY of the government response vars
+# (on a copy — master_variables must keep raw monthly values, since the saved
+# factor file is merged with the other factor files downstream)
+govtresponse_df = master_variables[government_response_vars + ['timeperiod', 'object_id']].copy()
 for var in government_response_vars:
-    master_variables[var]=master_variables.groupby(['object_id','FinancialYear'])[var].cumsum()
-
-
-govtresponse_df = master_variables[government_response_vars + ['timeperiod', 'object_id']]
+    govtresponse_df[var] = master_variables.groupby(['object_id','FinancialYear'])[var].cumsum()
 
 
 govtresponse_df_months = []
@@ -75,4 +75,4 @@ govtresponse = pd.concat(govtresponse_df_months)
 master_variables = master_variables.merge(govtresponse[['timeperiod', 'object_id', 'government-response']],
                        on = ['timeperiod', 'object_id'])
 
-master_variables.to_csv(path+'/IDS-DRR-Himachal-Pradesh-Risk-Score-Model/RiskScoreModel/data/factor_scores_l1_government-response.csv', index=False)
+master_variables.to_csv(path+'/RiskScoreModel/data/factor_scores_l1_government-response.csv', index=False)
