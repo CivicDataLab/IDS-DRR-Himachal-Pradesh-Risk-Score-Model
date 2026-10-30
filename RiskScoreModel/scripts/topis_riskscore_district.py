@@ -93,137 +93,119 @@ print(topsis.columns)
 topsis.to_csv(os.getcwd()+r'/RiskScoreModel/data/risk_score.csv', index=False)
 
 # ## DISTRICT LEVEL SCORES
+#
+# A district score is a roll-up of its tehsil scores. Summing the 1-5 ordinal
+# labels (the old behaviour) makes the district score a proxy for *how many
+# tehsils the district has*: KANGRA has 22 tehsils and LAHAUL & SPITI has 2, so
+# the ceiling for KANGRA was 110 and for LAHAUL & SPITI 10 - against bins cut
+# over the pooled range, LAHAUL & SPITI and KINNAUR could never leave class 1
+# and small-but-exposed districts like BILASPUR, HAMIRPUR and UNA were pinned
+# at 2. Spearman rho between the district risk class and the tehsil count was
+# 0.90 under summing.
+#
+# Assam and Bihar both use an unweighted .mean() instead, which removes that
+# artefact but treats a 3.5k-person tehsil and a 307k-person one alike. We take
+# the population-weighted mean, so a district score answers "what risk level
+# does the average resident of this district face?".
+#
+# The published district 'topsis-score' is weighted the same way, so the
+# continuous column and the 1-5 class always agree. See DIST_SCALE below for
+# how the weighted mean becomes that class.
 dist_ids = pd.read_csv(os.getcwd()+r'/RiskScoreModel/assets/district_objectid.csv')
 
 compositescorelabels = ['1','2','3','4','5']
 
-dist_vul = topsis.groupby(['district','timeperiod'])['vulnerability'].sum().reset_index()
-compscore = pd.cut(dist_vul['vulnerability'],bins = 5,precision = 0,labels = compositescorelabels )
-dist_vul['vulnerability'] = compscore
-dist_vul = dist_vul.merge(dist_ids, on='district')
+# Weight column for the roll-up, and the aggregation used for flood-hazard.
+# Hazard is a physical quantity rather than a people-facing one, so set this to
+# 'max' if a district should take the worst hazard among its tehsils instead of
+# the population-weighted average.
+DIST_WEIGHT = 'sum-population'
+HAZARD_AGG = 'wmean'   # 'wmean' | 'max'
 
-dist_exp = topsis.groupby(['district','timeperiod'])['exposure'].sum().reset_index()
-compscore = pd.cut(dist_exp['exposure'],bins = 5,precision = 0,labels = compositescorelabels )
-dist_exp['exposure'] = compscore
-dist_exp = dist_exp.merge(dist_ids, on='district')
+# How the district value becomes a 1-5 class.
+#   'round' - round the weighted mean to the nearest integer (default)
+#   'qcut'  - quantile bins over the pooled district x month values
+#   'cut'   - equal-width bins over the pooled range (the old behaviour)
+#
+# The tehsil factors are already on a 1-5 scale, so their weighted mean is
+# already in 1-5 and rounding keeps it there: a district hazard of 4 means the
+# average resident lives in a hazard-4 tehsil, which is directly comparable to
+# the tehsil column and to the same district in another month.
+#
+# Re-binning does not survive HP's geography. Only 12 districts contribute and
+# their values are bimodal - KINNAUR and LAHAUL & SPITI sit near 1 while the
+# rest cluster high - so equal-width bins put every cut-point inside that gap:
+# exposure came out as 132 district-months in class 1, 330 in class 4, 330 in
+# class 5 and *nobody* in classes 2 or 3. Quantile bins fill all five classes
+# but make the number relative to HP's own history rather than absolute, so a
+# weighted-mean hazard of 4.0 lands in class 3 because that is HP's median.
+DIST_SCALE = 'round'  # 'round' | 'qcut' | 'cut'
 
-dist_govt = topsis.groupby(['district','timeperiod'])['government-response'].sum().reset_index()
-compscore = pd.cut(dist_govt['government-response'],bins = 5,precision = 0,labels = compositescorelabels )
-dist_govt['government-response'] = compscore
-dist_govt = dist_govt.merge(dist_ids, on='district')
-
-dist_haz = topsis.groupby(['district','timeperiod'])['flood-hazard'].sum().reset_index()
-compscore = pd.cut(dist_haz['flood-hazard'],bins = 5,precision = 0,labels = compositescorelabels )
-dist_haz['flood-hazard'] = compscore
-dist_haz = dist_haz.merge(dist_ids, on='district')
-
+# Only tehsil rows feed the roll-up; district rows are appended further down.
+tehsil_rows = topsis[topsis['tehsil'].notna()].copy()
 topsis['risk-score'] = topsis['risk-score'].astype(int)
-dist_risk = topsis.groupby(['district','timeperiod'])['risk-score'].sum().reset_index()
-compscore = pd.cut(dist_risk['risk-score'],bins = 5,precision = 0,labels = compositescorelabels )
-dist_risk['risk-score'] = compscore
-dist_risk = dist_risk.merge(dist_ids, on='district')
+tehsil_rows['risk-score'] = tehsil_rows['risk-score'].astype(int)
 
-# === DISTRICT LEVEL SCORES (improved, minimal changes) ===
 
-# dist_ids = pd.read_csv(os.getcwd()+r'/RiskScoreModel/assets/district_objectid.csv')
+def _weighted_mean(frame, col, weight=DIST_WEIGHT):
+    values = pd.to_numeric(frame[col], errors='coerce')
+    weights = pd.to_numeric(frame[weight], errors='coerce')
+    usable = values.notna() & weights.notna() & (weights > 0)
+    if not usable.any():
+        # No population to weight by: fall back to the plain mean rather than
+        # dropping the district out of the output entirely.
+        return values.mean()
+    return np.average(values[usable], weights=weights[usable])
 
-# def safe_qcut(s: pd.Series, q: int = 5, labels=None):
-#     """
-#     Quantile-bin a series but gracefully handle too-few-unique values and duplicates.
-#     Ensures number of labels matches number of bins.
-#     """
-#     s = pd.to_numeric(s, errors='coerce')
-#     s_nonan = s.dropna()
-#
-#     # If everything is NaN or constant -> single bin
-#     nunique = s_nonan.nunique()
-#     if nunique == 0:
-#         return pd.Series(pd.NA, index=s.index, dtype="Int64")
-#     if nunique == 1:
-#         # All same value -> put everything in bin 1
-#         return pd.Series(1, index=s.index, dtype="Int64")
-#
-#     # Don’t ask for more quantiles than distinct values
-#     q_eff = min(q, nunique)
-#
-#     # First try: direct qcut with adjusted q and labels
-#     lab = labels if (labels is not None and len(labels) == q_eff) else list(range(1, q_eff + 1))
-#     try:
-#         return pd.qcut(s, q=q_eff, labels=lab, duplicates='drop')
-#     except ValueError:
-#         # If duplicates still collapse bins, get actual bins, then cut with matching labels
-#         _, bins = pd.qcut(s, q=q_eff, labels=None, retbins=True, duplicates='drop')
-#         nb = len(bins) - 1
-#         lab2 = labels if (labels is not None and len(labels) == nb) else list(range(1, nb + 1))
-#         return pd.cut(s, bins=bins, labels=lab2, include_lowest=True) # type: ignore
-#
-# # Use integer labels for easier downstream use
-# compositescorelabels = [1, 2, 3, 4, 5]
-#
-# # Work only with tehsil rows for aggregation (prevents mixing pre-aggregated rows)
-# _base = topsis.loc[topsis['tehsil'].notna()].copy()
-#
-# # Ensure numerics
-# for c in ['vulnerability', 'exposure', 'government-response', 'flood-hazard', 'risk-score', 'sum-population']:
-#     _base[c] = pd.to_numeric(_base[c], errors='coerce')
-#
-# # If higher government-response means better capacity (i.e., lowers risk), invert it here for risk aggregation
-# #_base['gov_resp_cost'] = 1 - _base['government-response']
-#
-# def _wavg(g, col, w='sum-population'):
-#     v = pd.to_numeric(g[col], errors='coerce')
-#     wv = pd.to_numeric(g[w], errors='coerce')
-#     m = v.notna() & wv.notna() & (wv > 0)
-#     return np.average(v[m], weights=wv[m]) if m.any() else np.nan
-#
-# # Vulnerability
-# dist_vul = (
-#     _base.groupby(['district','timeperiod'])
-#          .apply(lambda g: pd.Series({'vulnerability': _wavg(g, 'vulnerability')}))
-#          .reset_index()
-# )
-# dist_vul['vulnerability'] = safe_qcut(dist_vul['vulnerability'], q=5, labels=compositescorelabels)
-# dist_vul = dist_vul.merge(dist_ids, on='district', how='left')
-#
-# # Exposure
-# dist_exp = (
-#     _base.groupby(['district','timeperiod'])
-#          .apply(lambda g: pd.Series({'exposure': _wavg(g, 'exposure')}))
-#          .reset_index()
-# )
-# dist_exp['exposure'] = safe_qcut(dist_exp['exposure'], q=5, labels=compositescorelabels)
-# dist_exp = dist_exp.merge(dist_ids, on='district', how='left')
-#
-# # Government response (cost: higher = worse for risk)
-# dist_govt = (
-#     _base.groupby(['district','timeperiod'])
-#          .apply(lambda g: pd.Series({'government-response': _wavg(g, 'government-response')}))
-#          .reset_index()
-# )
-# dist_govt['government-response'] = safe_qcut(dist_govt['government-response'], q=5, labels=compositescorelabels)
-# dist_govt = dist_govt.merge(dist_ids, on='district', how='left')
-#
-# # Flood hazard
-# dist_haz = (
-#     _base.groupby(['district','timeperiod'])
-#          .apply(lambda g: pd.Series({'flood-hazard': _wavg(g, 'flood-hazard')}))
-#          .reset_index()
-# )
-# dist_haz['flood-hazard'] = safe_qcut(dist_haz['flood-hazard'], q=5, labels=compositescorelabels)
-# dist_haz = dist_haz.merge(dist_ids, on='district', how='left')
-#
-# # Risk-score (keep continuous when averaging; bin only after)
-# dist_risk = (
-#     _base.groupby(['district','timeperiod'])
-#          .apply(lambda g: pd.Series({'risk-score': _wavg(g, 'risk-score')}))
-#          .reset_index()
-# )
-# dist_risk['risk-score'] = safe_qcut(dist_risk['risk-score'], q=5, labels=compositescorelabels)
-# dist_risk = dist_risk.merge(dist_ids, on='district', how='left')
+
+def _to_class_1_to_5(series, native_scale=True):
+    """Turn a district-level value into the published 1-5 class.
+
+    native_scale says the value is already a 1-5 mean (the four factors) and so
+    can simply be rounded; the TOPSIS score is continuous and always needs bins.
+    """
+    if DIST_SCALE == 'round' and native_scale:
+        return series.round().clip(1, 5).astype(int).astype(str)
+    if DIST_SCALE == 'cut':
+        return pd.cut(series, bins=5, precision=0, labels=compositescorelabels)
+    # duplicates='drop' because the ordinal factors tie heavily; when bins
+    # collapse, qcut needs the label count to match the bins that survive.
+    _, bins = pd.qcut(series, q=5, retbins=True, duplicates='drop')
+    labels = compositescorelabels[:len(bins) - 1]
+    return pd.cut(series, bins=bins, labels=labels, include_lowest=True)
+
+
+def rollup_to_district(col, how='wmean', native_scale=True):
+    """Roll a tehsil column up to district x month, then class it 1-5."""
+    if how == 'wmean':
+        agg = (tehsil_rows.groupby(['district', 'timeperiod'])
+                          .apply(lambda g: _weighted_mean(g, col), include_groups=False)
+                          .reset_index(name=col))
+    else:
+        agg = tehsil_rows.groupby(['district', 'timeperiod'])[col].agg(how).reset_index()
+    agg[col] = _to_class_1_to_5(agg[col], native_scale=native_scale)
+    return agg.merge(dist_ids, on='district')
+
+
+dist_vul = rollup_to_district('vulnerability')
+dist_exp = rollup_to_district('exposure')
+dist_govt = rollup_to_district('government-response')
+dist_haz = rollup_to_district('flood-hazard', how=HAZARD_AGG)
+
+# Risk rolls up from the 1-5 'risk-score' under DIST_SCALE='round', so that the
+# district number stays on the same scale as the tehsil one. Under 'qcut'/'cut'
+# it rolls up from the continuous 'topsis-score' instead, which keeps the
+# magnitude the weighting acts on rather than binning an already-binned label.
+if DIST_SCALE == 'round':
+    dist_risk = rollup_to_district('risk-score')
+else:
+    dist_risk = (rollup_to_district('topsis-score', native_scale=False)
+                 .rename(columns={'topsis-score': 'risk-score'}))
 
 
 
 indicators = ['total-tender-awarded-value', 
+    'sdrf-tenders-awarded-value',
     'restoration-measures-tenders-awarded-value',
     'lwss-tenders-awarded-value', 
     'ndrf-tenders-awarded-value', 
@@ -316,6 +298,7 @@ indicators = ['total-tender-awarded-value',
 aggregation_rules = {
     # Sum columns
     'total-tender-awarded-value': 'sum', 
+    'sdrf-tenders-awarded-value': 'sum',
     'restoration-measures-tenders-awarded-value': 'sum',
     'lwss-tenders-awarded-value': 'sum', 
     'ndrf-tenders-awarded-value': 'sum', 
@@ -402,6 +385,7 @@ aggregation_rules = {
 rounding_rules = {
 
     'total-tender-awarded-value':0, 
+    'sdrf-tenders-awarded-value':0,
     'restoration-measures-tenders-awarded-value':0,
     'lwss-tenders-awarded-value':0, 
     'ndrf-tenders-awarded-value':0, 
@@ -452,7 +436,17 @@ rounding_rules = {
     #'government-response': 0,
 }
 
-dist_indicators = topsis.groupby(['district', 'timeperiod']).agg(aggregation_rules).reset_index()
+dist_indicators = tehsil_rows.groupby(['district', 'timeperiod']).agg(aggregation_rules).reset_index()
+
+# The published district 'topsis-score' has to be the same number the district
+# 'risk-score' class was cut from, so weight it the same way instead of taking
+# the plain mean the aggregation_rules above would give.
+dist_indicators = dist_indicators.drop(columns=['topsis-score']).merge(
+    (tehsil_rows.groupby(['district', 'timeperiod'])
+                .apply(lambda g: _weighted_mean(g, 'topsis-score'), include_groups=False)
+                .reset_index(name='topsis-score')),
+    on=['district', 'timeperiod'])
+
 dist_indicators = dist_indicators.merge(dist_ids, on='district')
 
 
